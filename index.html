@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ronald // root@localhost</title>
+<style>
+  :root{
+    --bg:#000;
+    --panel:rgba(5,15,10,.65); /* Dibuat lebih transparan agar bg kelihatan */
+    --green:#00ff88;
+    --green-dim:#0a8f4d;
+    --line:rgba(10,143,77,.5);
+    --text:#c8ffd9;
+    --dim:#88cfa6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    font-family:"Courier New",Consolas,monospace;
+    color:var(--text);
+    overflow-x:hidden;
+    font-size:13px;
+  }
+
+  /* BACKGROUND FOTO */
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background-image:url("bg.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    z-index:-2;
+  }
+  /* OVERLAY DIBUAT SANGAT TIPIS */
+  body::after{
+    content:"";
+    position:fixed;inset:0;
+    background: rgba(0, 10, 5, 0.4); /* Hanya peredup 40% */
+    z-index:-1;
+  }
+
+  /* BOOT */
+  #boot{
+    position:fixed;inset:0;z-index:100;
+    background:rgba(0,5,2,.92);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    padding:20px;
+    transition:opacity .7s ease, visibility .7s ease;
+  }
+  #boot.done{opacity:0;visibility:hidden;pointer-events:none}
+  .boot-box{
+    width:100%;max-width:400px;
+    border:1px solid var(--green-dim);border-radius:6px;
+    background:rgba(5,10,5,.95);
+    box-shadow:0 0 0 1px rgba(0,255,136,.12),0 0 40px rgba(0,255,136,.22);
+    padding:0 0 16px;position:relative;z-index:1;overflow:hidden;
+  }
+  .boot-bar{
+    display:flex;align-items:center;gap:7px;
+    padding:8px 12px;background:rgba(0,255,136,.06);
+    border-bottom:1px solid var(--line);
+    font-size:11px;color:var(--dim);
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green-dim)}
+  .dot.r{background:#ff5f56}.dot.y{background:#ffbd2e}.dot.g{background:#27c93f}
+  .bt{margin-left:5px;color:var(--green)}
+
+  .boot-log{
+    padding:14px 16px 6px;font-size:11px;line-height:1.85;
+    min-height:140px;color:var(--dim);
+    white-space:pre-wrap;word-break:break-word;
+    text-align:left;
+  }
+  .boot-log .ok{color:var(--green)}
+  .boot-log .warn{color:#ffbd2e}
+  .boot-log .cursor{
+    display:inline-block;width:6px;height:11px;
+    background:var(--green);vertical-align:middle;
+    animation:blink 1s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  .prog-wrap{padding:0 16px 16px}
+  .prog-track{
+    height:6px;background:#0a1a10;
+    border:1px solid var(--green-dim);
+    border-radius:4px;overflow:hidden;
+  }
+  .prog-fill{
+    height:100%;width:0%;
+    background:linear-gradient(90deg,var(--green-dim),var(--green));
+    box-shadow:0 0 12px rgba(0,255,136,.7);
+    transition:width .2s linear;
+  }
+  .prog-label{
+    margin-top:6px;font-size:10px;color:var(--green);
+    letter-spacing:2px;text-align:right;
+  }
+
+  /* WELCOME */
+  #welcome{
+    position:fixed;inset:0;z-index:90;
+    background:radial-gradient(circle at center,rgba(0,255,136,.1),rgba(0,5,2,.9) 70%);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;opacity:0;visibility:hidden;
+    transition:opacity .5s ease, visibility .5s ease;
+  }
+  #welcome.show{opacity:1;visibility:visible}
+  #welcome.fade{opacity:0}
+  .welcome-text{
+    font-size:clamp(18px,5vw,30px);font-weight:700;
+    letter-spacing:1.5px;text-align:center;line-height:1.3;
+    color:var(--green);
+    text-shadow:0 0 8px rgba(0,255,136,.9), 0 0 20px rgba(0,255,136,.55);
+    animation:welcomeIn .8s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  .welcome-text .emoji{
+    font-size:1.2em;display:inline-block;
+    animation:shake .6s ease-in-out infinite alternate;
+    filter:drop-shadow(0 0 8px rgba(0,255,136,.9));
+  }
+  @keyframes welcomeIn{
+    0%{opacity:0;transform:scale(.7) translateY(16px);filter:blur(8px)}
+    100%{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}
+  }
+  @keyframes shake{
+    from{transform:rotate(-6deg) scale(1)}
+    to{transform:rotate(6deg) scale(1.08)}
+  }
+
+  /* CARD */
+  .stage{
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:20px 12px;position:relative;
+    opacity:0;transform:translateY(10px);
+    transition:opacity .7s ease, transform .7s ease;
+  }
+  .stage.show{opacity:1;transform:translateY(0)}
+
+  .card{
+    position:relative;z-index:1;width:100%;max-width:340px;
+    background:var(--panel);
+    border:1px solid var(--green-dim);border-radius:6px;
+    padding:0 0 16px;
+    box-shadow:0 0 0 1px rgba(0,255,136,.12), 0 0 30px rgba(0,255,136,.28), inset 0 0 20px rgba(0,255,136,.05);
+    overflow:hidden;
+    backdrop-filter:blur(16px); /* Blur lebih tebal agar teks terbaca */
+    -webkit-backdrop-filter:blur(16px);
+  }
+  .card::before{
+    content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--green),transparent);
+    animation:sweep 3s linear infinite;
+  }
+  @keyframes sweep{
+    0%{transform:translateX(-100%)}
+    100%{transform:translateX(100%)}
+  }
+
+  .bar{
+    display:flex;align-items:center;gap:6px;
+    padding:8px 11px;background:rgba(0,255,136,.08);
+    border-bottom:1px solid var(--line);
+    font-size:10.5px;color:var(--dim);
+  }
+  .bar .title{margin-left:5px;color:var(--green)}
+
+  .hang-zone{
+    position:relative;
+    height:180px;
+    margin:0 0 4px;
+  }
+  .hang-zone svg.strings{
+    position:absolute;top:0;left:0;
+    width:100%;height:100%;
+    pointer-events:none;
+    z-index:1;
+  }
+  .hang-zone svg.strings path{
+    fill:none;
+    stroke:url(#strGrad);
+    stroke-width:1.4;
+    stroke-linecap:round;
+    filter:drop-shadow(0 0 3px rgba(0,255,136,.5));
+  }
+
+  .badge{
+    position:absolute;
+    top:62px;
+    left:50%;
+    margin-left:-60px;
+    width:120px;
+    z-index:2;
+    transform-origin:50% -38px;
+    animation:
+      dropIn 1.3s cubic-bezier(.22,.9,.3,1.15) forwards,
+      sway 5s ease-in-out 1.3s infinite;
+  }
+  @keyframes dropIn{
+    0%{transform:translateY(-180px) rotate(-16deg);opacity:0}
+    55%{opacity:1}
+    100%{transform:translateY(0) rotate(0deg);opacity:1}
+  }
+  @keyframes sway{
+    0%,100%{transform:rotate(-2deg)}
+    50%{transform:rotate(2deg)}
+  }
+
+  .badge-body{
+    position:relative;
+    background:rgba(3,10,6,.96);
+    border:1px solid var(--green-dim);
+    border-radius:8px;
+    padding:6px 6px 8px;
+    box-shadow:0 10px 22px rgba(0,0,0,.7), 0 0 16px rgba(0,255,136,.3);
+  }
+
+  .hole{
+    position:absolute;
+    top:-5px;left:50%;
+    transform:translateX(-50%);
+    width:10px;height:10px;
+    border-radius:50%;
+    background:#000;
+    border:1px solid var(--green-dim);
+    z-index:4;
+  }
+  .hole::after{
+    content:"";
+    position:absolute;inset:2px;
+    border-radius:50%;
+    background:radial-gradient(circle,#04140a,#000);
+  }
+
+  .clip{
+    position:absolute;
+    top:-11px;left:50%;
+    transform:translateX(-50%);
+    width:22px;height:12px;
+    border:2px solid #b8e0c8;
+    border-bottom:none;
+    border-radius:7px 7px 0 0;
+    background:linear-gradient(180deg,#d8f5e2,#6fa585);
+    z-index:5;
+  }
+  .clip::after{
+    content:"";
+    position:absolute;
+    left:50%;bottom:-3px;
+    transform:translateX(-50%);
+    width:7px;height:5px;border-radius:2px;
+    background:#3d5c4a;
+  }
+
+  .badge-photo{
+    width:100%; aspect-ratio:1/1;
+    border-radius:5px; overflow:hidden; background:#000;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(0,255,136,.15);
+  }
+  .badge-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .badge-photo .fallback{
+    font-size:34px;font-weight:800;color:var(--green);
+    text-shadow:0 0 10px var(--green);
+  }
+
+  h1{
+    text-align:center;font-size:19px;letter-spacing:1.6px;
+    color:var(--green);margin-top:8px;
+    text-shadow:0 0 6px rgba(0,255,136,.6);
+  }
+  .handle{
+    text-align:center;color:var(--text);font-size:10px;
+    margin-top:3px;letter-spacing:.8px;
+  }
+  .cursor2{
+    display:inline-block;width:6px;height:11px;background:var(--green);
+    margin-left:2px;vertical-align:middle;
+    animation:blink 1s steps(1) infinite;
+  }
+
+  .divider{
+    height:1px;margin:14px 14px;
+    background:linear-gradient(90deg,transparent,var(--green-dim),transparent);
+  }
+
+  .section{padding:0 16px}
+  .section-title{
+    font-size:9.5px; color:var(--green);
+    letter-spacing:2px; text-transform:uppercase;
+    margin:14px 0 6px; opacity:.8;
+  }
+  .section-title::before{content:"// ";color:var(--green-dim)}
+  
+  .row{
+    display:flex;justify-content:space-between;
+    padding:7px 0;font-size:12px;
+    border-bottom:1px dashed rgba(0,255,136,.2);
+  }
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--dim)}
+  .row .k::before{content:"> ";color:var(--green)}
+  .row .v{color:var(--text);font-weight:700}
+
+  .grid-list {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .grid-item {
+    background: rgba(0,255,136,.1); border: 1px solid var(--line);
+    border-radius: 4px; padding: 6px 8px; font-size: 11px;
+    color: var(--text); text-align: center; font-weight: 700;
+  }
+
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;justify-content:center}
+  .tag{
+    padding:3px 9px;border:1px solid var(--green-dim);
+    border-radius:3px;font-size:9.5px;color:var(--green);
+    background:rgba(0,255,136,.1);letter-spacing:.8px;
+  }
+  .quote{
+    margin:12px 16px 0;padding:9px 11px;
+    border-left:2px solid var(--green);
+    background:rgba(0,255,136,.1);
+    color:var(--text);font-size:11px;line-height:1.55;
+  }
+
+  .socials{
+    display:flex;justify-content:center;gap:10px;
+    margin:14px 14px 0;padding-top:13px;
+    border-top:1px solid var(--line);
+  }
+  .social{
+    display:flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:8px;
+    border:1px solid var(--green-dim); background:rgba(0,255,136,.1);
+    color:var(--green); text-decoration:none;
+    transition:all .25s ease;position:relative;
+  }
+  .social svg{width:18px;height:18px;display:block;fill:currentColor}
+  .social:hover{
+    background:rgba(0,255,136,.2); border-color:var(--green);
+    color:#fff; box-shadow:0 0 14px rgba(0,255,136,.55);
+    transform:translateY(-2px);
+  }
+  .social::after{
+    content:attr(data-label);position:absolute;bottom:-18px;left:50%;
+    transform:translateX(-50%);font-size:8.5px;letter-spacing:1px;
+    color:var(--text);opacity:0;transition:opacity .2s;white-space:nowrap;
+  }
+  .social:hover::after{opacity:1;color:var(--green)}
+
+  .credit{
+    margin:26px 14px 0;padding-top:11px;
+    border-top:1px solid var(--line);
+    text-align:center;font-size:10px;color:var(--text);
+    letter-spacing:1px;
+  }
+  .credit b{color:var(--green);text-shadow:0 0 5px rgba(0,255,136,.7)}
+
+  .music{
+    position:fixed;bottom:12px;right:12px;z-index:80;
+    display:flex;align-items:center;gap:7px;
+    padding:7px 10px; background:rgba(5,10,5,.8);
+    border:1px solid var(--green-dim);border-radius:30px;
+    box-shadow:0 0 14px rgba(0,255,136,.35);
+    cursor:pointer;user-select:none;
+    transition:transform .2s, box-shadow .2s;
+    font-size:10px;color:var(--green);letter-spacing:1px;
+    backdrop-filter:blur(10px);
+  }
+  .music:hover{ transform:translateY(-2px); box-shadow:0 0 20px rgba(0,255,136,.6); }
+  .music .eq{display:flex;align-items:flex-end;gap:2px;height:11px}
+  .music .eq span{
+    display:block;width:2.5px;background:var(--green);
+    animation:eq 1s ease-in-out infinite;
+    box-shadow:0 0 5px rgba(0,255,136,.8);
+  }
+  .music .eq span:nth-child(1){height:40%;animation-delay:0s}
+  .music .eq span:nth-child(2){height:90%;animation-delay:.15s}
+  .music .eq span:nth-child(3){height:60%;animation-delay:.3s}
+  .music .eq span:nth-child(4){height:100%;animation-delay:.45s}
+  .music.paused .eq span{animation-play-state:paused;height:20%;box-shadow:none;opacity:.4}
+  @keyframes eq{ 0%,100%{transform:scaleY(.5)} 50%{transform:scaleY(1)} }
+  .music .lbl{font-weight:700}
+</style>
+</head>
+<body>
+
+  <div id="boot">
+    <div class="boot-box">
+      <div class="boot-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="bt">ronald@exploit:~$ ./boot.sh</span>
+      </div>
+      <div class="boot-log" id="bootlog"></div>
+      <div class="prog-wrap">
+        <div class="prog-track"><div class="prog-fill" id="progfill"></div></div>
+        <div class="prog-label" id="proglabel">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="welcome">
+    <div class="welcome-text">
+      Welcome to Ronald Place<span class="emoji">😈</span>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <main class="card">
+      <div class="bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">root@ronald:~$ whoami</span>
+      </div>
+
+      <div class="hang-zone">
+        <svg class="strings" viewBox="0 0 340 180" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="strGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stop-color="#00ff88" stop-opacity=".15"/>
+              <stop offset="50%"  stop-color="#00ff88" stop-opacity=".9"/>
+              <stop offset="100%" stop-color="#00ff88" stop-opacity=".15"/>
+            </linearGradient>
+          </defs>
+          <path d="M 0 0 Q 110 52 158 62"/>
+          <path d="M 340 0 Q 230 52 182 62"/>
+        </svg>
+
+        <div class="badge">
+          <div class="badge-body">
+            <span class="hole"></span>
+            <span class="clip"></span>
+            <div class="badge-photo">
+              <img src="foto.jpg" alt="Ronald"
+                   onerror="this.style.display='none';this.parentNode.querySelector('.fallback').style.display='block'">
+              <span class="fallback" style="display:none">R</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h1>RONALD</h1>
+      <p class="handle">./pelajar &nbsp;•&nbsp; 15 y/o <span class="cursor2"></span></p>
+
+      <div class="divider"></div>
+
+      <div class="section">
+        <div class="section-title">Identitas</div>
+        <div class="row"><span class="k">Nama</span><span class="v">Ronald</span></div>
+        <div class="row"><span class="k">Umur</span><span class="v">15</span></div>
+        <div class="row"><span class="k">Jenjang</span><span class="v">SMP</span></div>
+
+        <div class="section-title">Spesialisasi</div>
+        <div class="grid-list">
+          <div class="grid-item">Game Code</div>
+          <div class="grid-item">Modifikasi Game</div>
+          <div class="grid-item" style="grid-column: span 2;">Editor</div>
+        </div>
+
+        <div class="section-title">Hobi</div>
+        <div class="grid-list">
+          <div class="grid-item" style="grid-column: span 2;">Gaming and Study</div>
+        </div>
+      </div>
+
+      <div class="tags">
+        <span class="tag">GAMER</span>
+        <span class="tag">LEARN_FROM_ERROR</span>
+        <span class="tag">SMP</span>
+      </div>
+
+      <p class="quote">"Seorang pelajar yang belajar dari kesalahannya."</p>
+
+      <div class="socials">
+        <a class="social" href="https://www.instagram.com/ronald_teofilus_tarigan?exln=OWVmeGtpeGdxNHA2"
+           target="_blank" rel="noopener" data-label="IG" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zm0 1.8c-3.15 0-3.5.01-4.74.07-1.14.05-1.76.24-2.17.4-.55.21-.94.47-1.35.88-.41.41-.67.8-.88 1.35-.16.41-.35 1.03-.4 2.17-.06 1.24-.07 1.59-.07 4.74s.01 3.5.07 4.74c.05 1.14.24 1.76.4 2.17.21.55.47.94.88 1.35.41.41.8.67 1.35.88.41.16 1.03.35 2.17.4 1.24.06 1.59.07 4.74.07s3.5-.01 4.74-.07c1.14-.05 1.76-.24 2.17-.4.55-.21.94-.47 1.35-.88.41-.41.67-.8.88-1.35.16-.41.35-1.03.4-2.17.06-1.24.07-1.59.07-4.74s-.01-3.5-.07-4.74c-.05-1.14-.24-1.76-.4-2.17-.21-.55-.47-.94-.88-1.35-.41-.41-.8-.67-1.35-.88-.41-.16-1.03-.35-2.17-.4-1.24-.06-1.59-.07-4.74-.07zm0 3.06a5.98 5.98 0 1 1 0 11.96 5.98 5.98 0 0 1 0-11.96zm0 1.8a4.18 4.18 0 1 0 0 8.36 4.18 4.18 0 0 0 0-8.36zm6.2-2.13a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8z"/>
+          </svg>
+        </a>
+
+        <a class="social" href="https://www.tiktok.com/@xyz8772?_r=1&_t=ZS-9BMjj1hPPTZ"
+           target="_blank" rel="noopener" data-label="TT" aria-label="TikTok">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.3 0 .58.05.85.13V9.4a6.33 6.33 0 0 0-5.15 1.11 6.34 6.34 0 0 0-1.04 8.82 6.33 6.33 0 0 0 8.83 1.04 6.31 6.31 0 0 0 2.51-5.13V8.92a8.2 8.2 0 0 0 4.77 1.53V7.01a4.79 4.79 0 0 1-.66-.32z"/>
+          </svg>
+        </a>
+
+        <a class="social" href="https://www.youtube.com/@RonaldXDt"
+           target="_blank" rel="noopener" data-label="YT" aria-label="YouTube">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12l-6.27 3.57z"/>
+          </svg>
+        </a>
+      </div>
+
+      <div class="credit">
+        [ CREDIT: <b>RonaldExploit</b> ]
+      </div>
+    </main>
+  </div>
+
+  <div class="music paused" id="music">
+    <div class="eq"><span></span><span></span><span></span><span></span></div>
+    <span class="lbl" id="musicLbl">TAP TO PLAY</span>
+  </div>
+
+  <audio id="bgm" loop preload="auto">
+    <source src="lagu.mp3" type="audio/mpeg">
+  </audio>
+
+<script>
+(function(){
+  var bootlog   = document.getElementById('bootlog');
+  var progfill  = document.getElementById('progfill');
+  var proglabel = document.getElementById('proglabel');
+  var boot      = document.getElementById('boot');
+  var welcome   = document.getElementById('welcome');
+  var stage     = document.getElementById('stage');
+  var bgm       = document.getElementById('bgm');
+  var music     = document.getElementById('music');
+  var musicLbl  = document.getElementById('musicLbl');
+
+  var finished = false;
+  var timer    = null;
+
+  var lines = [
+    { t: '[ OK ] memuat kernel ronald.os',       c: 'ok',   d: 220 },
+    { t: '[ OK ] mounting /dev/profile',         c: 'ok',   d: 200 },
+    { t: '[ OK ] memuat modul gamer.core',       c: 'ok',   d: 220 },
+    { t: '[ OK ] importing learn_from_error.so', c: 'ok',   d: 260 },
+    { t: '[WARN] patch 15.yo -> stabil',         c: 'warn', d: 300 },
+    { t: '[ OK ] verifikasi RonaldExploit',      c: 'ok',   d: 220 },
+    { t: '[ OK ] membuka sesi aman',             c: 'ok',   d: 200 },
+    { t: 'root@ronald:~$ whoami',                c: '',     d: 260 },
+    { t: 'Ronald // SMP // 15',                  c: 'ok',   d: 320 },
+    { t: 'boot selesai. masuk...',               c: 'ok',   d: 260 }
+  ];
+
+  var idx = 0;
+
+  function step(){
+    if (finished) return;
+    if (idx >= lines.length) { finishBoot(); return; }
+    var L = lines[idx];
+    var pct = Math.round(((idx + 1) / lines.length) * 100);
+    var div = document.createElement('div');
+    div.className = L.c;
+    div.textContent = L.t;
+    bootlog.appendChild(div);
+    progfill.style.width = pct + '%';
+    proglabel.textContent = pct + '%';
+    idx++;
+    timer = setTimeout(step, L.d);
+  }
+
+  function finishBoot(){
+    if (finished) return;
+    finished = true;
+    if (timer) { clearTimeout(timer); timer = null; }
+
+    var cur = document.createElement('span');
+    cur.className = 'cursor';
+    bootlog.appendChild(cur);
+    progfill.style.width = '100%';
+    proglabel.textContent = '100%';
+
+    setTimeout(function(){
+      boot.classList.add('done');
+      setTimeout(function(){
+        welcome.classList.add('show');
+        setTimeout(function(){
+          welcome.classList.add('fade');
+          stage.classList.add('show');
+          tryPlay();
+        }, 2000);
+      }, 400);
+    }, 380);
+  }
+
+  setTimeout(function(){
+    if (!finished) { idx = lines.length; finishBoot(); }
+  }, 8000);
+
+  bgm.volume = 0.55;
+  function markPlaying(){ music.classList.remove('paused'); musicLbl.textContent = 'MUSIC ON'; }
+  function markPaused (){ music.classList.add('paused');    musicLbl.textContent = 'TAP TO PLAY'; }
+
+  function tryPlay(){
+    var p;
+    try { p = bgm.play(); } catch(e) { markPaused(); return; }
+    if (p && p.catch) {
+      p.then(markPlaying).catch(function(){
+        markPaused();
+        var unlock = function(){
+          try { bgm.play().then(markPlaying).catch(function(){}); } catch(e){}
+          ['click','touchstart','keydown','scroll','mousemove'].forEach(function(ev){
+            document.removeEventListener(ev, unlock);
+          });
+        };
+        ['click','touchstart','keydown','scroll','mousemove'].forEach(function(ev){
+          document.addEventListener(ev, unlock, { once:true });
+        });
+      });
+    } else { markPlaying(); }
+  }
+
+  music.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (bgm.paused) { tryPlay(); }
+    else            { bgm.pause(); markPaused(); }
+  });
+
+  setTimeout(step, 320);
+})();
+</script>
+</body>
+</html>
